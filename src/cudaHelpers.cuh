@@ -12,6 +12,7 @@
 #define cuda_mem_cpy(dst, src, count, kind) { CUDA_REQUIRE_SUCCESS(cudaMemcpy(dst, src, count, kind)); }
 #define cuda_free(ptr) { CUDA_REQUIRE_SUCCESS(cudaFree(ptr)); }
 
+// shamelessly stolen from David (github.com/DCGroothuizenDijkema/), thank you David.
 inline void cuda_check(const cudaError_t code, const char * const file, const char * const func, const char * const call, const int line) {
     if (code != cudaSuccess) {
         std::cout
