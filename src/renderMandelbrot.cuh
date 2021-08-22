@@ -2,6 +2,7 @@
 
 #include <cuda_runtime_api.h>
 #include <cuda_device_runtime_api.h>
+#include <iomanip>
 #include <vector>
 
 #include "screen.hpp"
@@ -44,7 +45,8 @@ void RenderMandelbrot(const Screen& screen, const std::vector<int_T>& arr) {
 
             std::cout << out;
         }
-        std::cout << " " << row <<  std::endl;
+        std::cout << std::setfill(' ') << std::setw(5);
+        std::cout << row <<  std::endl;
     }
 }
 
@@ -80,7 +82,8 @@ void PrintChars(const Screen& screen, const char* charsOut) {
             const char val = charsOut[indexRowMaj(row, col, screen.m_pixelsX)];
             std::cout << val;
         }
-        std::cout << " " << row <<  std::endl;
+        std::cout << std::setfill(' ') << std::setw(5);
+        std::cout << row <<  std::endl;
     }
 }
 
