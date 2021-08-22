@@ -31,6 +31,7 @@ Some CUDA for making interactive ASCII art of the Mandelbrot set.
 +                                                       ......########o....                             +   27
 +                                                         ....o..##*.....                               +   28
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++   29
-
-
 ```
+Once your CUDA drivers are setup, it should be a matter of running `nvcc mandelbrot.cu -o main` followed by `./main`.
+The `w`, `a`, `s`, `d` keys can be used to navigate and the `=` and `-` keys can be used to zoom in and out.
+
