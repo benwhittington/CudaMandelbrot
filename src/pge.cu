@@ -19,10 +19,12 @@ private:
 	std::unique_ptr<Domain<float_T>> m_domain;
 	std::unique_ptr<Screen> m_screen;
 	std::unique_ptr<Runner_T> m_runner;
-	// std::unique_ptr<Mb1ByCols<float_T>> m_runner;
+	std::unique_ptr<Indexer<RowMaj>> m_indexer;
 	std::vector<float_T> m_out;
+
 	float_T m_lastMaxValue;
 	float_T m_lastMinValue;
+
 	bool m_updateRequired;
 
 public:
@@ -31,18 +33,19 @@ public:
 	}
 
 	bool OnUserCreate() override {
-		m_updateRequired = true;
 		m_lastMaxValue = 1;
 		m_lastMinValue = 0;
+		m_updateRequired = true;
+		
 		constexpr float_T minX = -2.;
 		constexpr float_T maxX = 1.;
 		constexpr float_T minY = -1;
 		constexpr float_T maxY = 1;
 
 		m_domain.reset(new Domain<float_T>(minX, maxX, minY, maxY));
-		m_screen.reset(new Screen(*m_domain, ScreenWidth(), ScreenHeight()));
+		m_screen.reset(new Screen(ScreenWidth(), ScreenHeight()));
 		m_runner.reset(new Runner_T(m_screen.get()));
-		// m_runner.reset(new Mb1ByCols<float_T>(m_screen.get()));
+		m_indexer.reset(new Indexer<RowMaj>(m_screen->PixelsX(), m_runner->PaddingX()));
 		m_out = std::vector<float_T>(m_screen->NumPixels());
 
 		return true;
@@ -54,7 +57,7 @@ public:
 
 		for (size_t col = 0; col < m_screen->PixelsX(); col++) {
 			for (size_t row = 0; row < m_screen->PixelsY(); row++) {
-				const auto rawValue = m_out.data()[indexRowMaj(row, col, m_screen->PixelsX())];
+				const auto rawValue = m_out.data()[(*m_indexer)(row, col)];
 				const auto mappedValue = map(rawValue, m_lastMinValue, m_lastMaxValue, 0., 1.);
 				if (rawValue > thisMaxValue) {
 					thisMaxValue = rawValue;
@@ -118,7 +121,7 @@ public:
 };
 
 int main(int argc, char *argv[]) {
-	int32_t screenWidth = 1024;
+	int32_t screenWidth = 1025;
 	int32_t screenHeight = 688;
 	int32_t pixelSize = 1;
 
@@ -139,7 +142,9 @@ int main(int argc, char *argv[]) {
 			exit(EXIT_FAILURE);
 	}
 
-	Mandelbrot<double, Mb8By8<double>> demo;
+	typedef double float_T;
+
+	Mandelbrot<float_T, Mb8By8<float_T>> demo;
 	if (demo.Construct(screenWidth, screenHeight, pixelSize, pixelSize, false)) {
 		demo.Start();
 	}

@@ -51,7 +51,7 @@ __global__ void RunMandelbrot(Domain<float_T1> domain, float_T2* out) {
     const auto x = map(col, 0u, pixelsX, domain.MinX(), domain.MaxX());
     const auto y = map(row, 0u, pixelsY, domain.MinY(), domain.MaxY());
     
-    const auto idx = indexRowMaj(row, col, pixelsX);
+    const auto idx = IndexRowMaj(row, col, pixelsX);
     const auto val = PerformMandelbrotIterations(x, y);
 
     out[idx] = val;
@@ -79,7 +79,7 @@ __global__ void RunMandelbrot8By8(Domain<float_T1> domain, float_T2* out) {
     const auto x = map(col, 0u, pixelsX, domain.MinX(), domain.MaxX());
     const auto y = map(row, 0u, pixelsY, domain.MinY(), domain.MaxY());
     
-    const auto idx = indexRowMaj(row, col, pixelsX);
+    const auto idx = IndexRowMaj(row, col, pixelsX);
     const auto val = PerformMandelbrotIterations(x, y);
     // printf("%s\n", __PRETTY_FUNCTION__);
     out[idx] = val;

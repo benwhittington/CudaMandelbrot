@@ -5,8 +5,7 @@
 #include "domain.hpp"
 
 struct Screen {
-    template<typename T>
-    Screen(Domain<T> domain, size_t pixelsX, size_t pixelsY) : m_pixelsX(pixelsX), 
+    Screen(size_t pixelsX, size_t pixelsY) : m_pixelsX(pixelsX), 
                                                                m_pixelsY(pixelsY) {
         m_numPixels = m_pixelsX * m_pixelsY;
     }

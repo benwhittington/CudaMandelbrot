@@ -25,6 +25,48 @@ inline void cuda_check(const cudaError_t code, const char * const file, const ch
 }
 
 template<typename T>
-__host__ __device__ T indexRowMaj(T row, T col, T numCols) {
-    return row * numCols + col;
+__host__ __device__ T IndexRowMaj(T row, T col, T numCols, T padding = 0) {
+    return row * (numCols + padding) + col;
 }
+
+struct RowMaj {};
+struct ColMaj {};
+
+template<typename Order>
+class Indexer;
+
+template<>
+class Indexer<RowMaj> {
+    size_t m_numCols;
+    size_t m_padding;
+public:
+    Indexer(size_t numCols, size_t padding) : m_numCols(numCols),
+                                              m_padding(padding)
+    {}
+
+    Indexer(size_t numCols) : m_numCols(numCols),
+                              m_padding(0)
+    {}
+
+    size_t operator()(size_t row, size_t col) {
+        return row * (m_numCols + m_padding) + col;
+    }
+};
+
+template<>
+class Indexer<ColMaj> {
+    size_t m_numRows;
+    size_t m_padding;
+public:
+    Indexer(size_t numRows, size_t padding) : m_numRows(numRows),
+                                              m_padding(padding)
+    {}
+
+    Indexer(size_t numRows) : m_numRows(numRows),
+                                              m_padding(0)
+    {}
+
+    size_t operator()(size_t row, size_t col) {
+        return col * (m_numRows + m_padding) + row;
+    }
+};

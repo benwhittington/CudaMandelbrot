@@ -47,18 +47,18 @@ __global__ void MapValuesToChars(const int_T* arr, char* charArr) {
         out = '+';
     }
     else {
-        const int_T val = arr[indexRowMaj(row, col, pixelsX)];
+        const int_T val = arr[IndexRowMaj(row, col, pixelsX)];
         out = MapValueToChar(val);
     }
 
-    charArr[indexRowMaj(row, col, pixelsX)] = out;
+    charArr[IndexRowMaj(row, col, pixelsX)] = out;
 }
 
 // prints characters in charsOut in grid based on screen dims
 void PrintChars(const Screen& screen, const char* charsOut) {
     for (size_t row = 0; row < screen.PixelsY(); ++row) {
         for (size_t col = 0; col < screen.PixelsX(); ++col) {
-            const char val = charsOut[indexRowMaj(row, col, screen.PixelsX())];
+            const char val = charsOut[IndexRowMaj(row, col, screen.PixelsX())];
             std::cout << val;
         }
         std::cout << std::setfill(' ') << std::setw(5);
@@ -122,6 +122,8 @@ private:
     dim3 m_blockDim;
     dim3 m_gridDim;
     size_t m_arraySize;
+    size_t m_paddingX;
+    size_t m_paddingY;
 
     void PopulateValues(const Domain<float_T>& domain) {
         RunMandelbrot8By8<<<m_gridDim, m_blockDim>>>(domain, m_pDevFloatsOut);
@@ -138,9 +140,11 @@ private:
 public:
     Mb8By8(Screen const* pScreen) : m_pScreen(pScreen) {
         m_blockDim = dim3(8, 8, 1);
-        const size_t blocksX = static_cast<unsigned int>(1 + (m_pScreen->PixelsX() - 1) / 8);
-        const size_t blocksY = static_cast<unsigned int>(1 + (m_pScreen->PixelsY() - 1) / 8);
+        const size_t blocksX = static_cast<size_t>(1 + (m_pScreen->PixelsX() - 1) / 8);
+        const size_t blocksY = static_cast<size_t>(1 + (m_pScreen->PixelsY() - 1) / 8);
         m_gridDim = dim3(blocksX, blocksY, 1);
+        m_paddingX = blocksX * 8 - m_pScreen->PixelsX();
+        m_paddingY = blocksY * 8 - m_pScreen->PixelsY();
 
         // over allocate here so there's no branching in the kernel
         m_arraySize = blocksX * 8 * blocksY * 8;
@@ -152,6 +156,14 @@ public:
     ~Mb8By8() {
         cuda_free(m_pDevFloatsOut);
         cuda_free(m_pDevCharsOut);
+    }
+
+    size_t PaddingX() {
+        return m_paddingX;
+    }
+
+    size_t PaddingY() {
+        return m_paddingY;
     }
 
     size_t ArraySize() {
