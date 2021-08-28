@@ -17,7 +17,7 @@
                : (std::cout << FAIL << " " << __FILE__ << "(" << __LINE__ << "): " << #expr << std::endl); \
     }
 
-void mb() {
+void mb(size_t screenWidth, size_t screenHeight) {
     constexpr double minX = -2.;
     constexpr double maxX = 1.;
     constexpr double minY = -1;
@@ -28,15 +28,15 @@ void mb() {
     // constexpr size_t pixelsPerY = 3 * density;
 
     auto domain = Domain<double>(minX, maxX, minY, maxY);
-    const auto screen = Screen(domain, 100, 50);
+    const auto screen = Screen(domain, screenWidth, screenHeight);
 
-    auto runner = RunAndRenderMandelbrotDeviceRaii<double>(screen.NumPixels());
+    auto runner = Mb8By8<double>(&screen);
 
+    // std::vector<char> out(screen.NumPixels());
     std::vector<char> out(screen.NumPixels());
-    // std::vector<double> charsOut(screen.NumPixels());
 
     while (true) {
-        // std::cout << "\033c" << std::endl;
+        std::cout << "\033c" << std::endl;
 
         // RunMandelbrotDevice(domain, screen, out.data());
         // RenderMandelbrot(screen, out);
@@ -44,34 +44,34 @@ void mb() {
         // RunAndRenderMandelbrotDevice(domain, screen, out.data());
         // PrintChars(screen, charsOut);
 
-        runner(domain, screen, out.data());
-        PrintChars(screen, out.data());
+        // runner(domain, screen, out.data());
 
-        // runner.RunMb2(domain, screen, charsOut.data());
+        runner(domain, out.data());
+        PrintChars(screen, out.data());
         // exit(EXIT_SUCCESS);
 
         auto val = std::cin.get();
         switch (val) {
         case 61: // =
-            domain.zoomIn();
+            domain.ZoomIn();
             break;
         case 45: // -
-            domain.zoomOut();
+            domain.ZoomOut();
             break;
         case 119: // w
-            domain.up();
+            domain.Up();
             break;
         case 115: // s
-            domain.down();
+            domain.Down();
             break;
         case 100: // d
-            domain.right();
+            domain.Right();
             break;
         case 97: // a
-            domain.left();
+            domain.Left();
             break;
         case 104: // h
-            domain.reset();
+            domain.Reset();
         }
     }
 }
@@ -88,8 +88,27 @@ void tests() {
     ASSERT(indexRowMaj(2, 9, 10) == 29);
 }
 
-int main() {
-    tests();
-    mb();
-    return 0;
+int main(int argc, char *argv[]) {
+	size_t screenWidth = 1024;
+	size_t screenHeight = screenWidth / 1.5;
+
+	switch (argc) {
+		case 1:
+			break;
+		case 2:
+			screenWidth = std::atoi(argv[1]);
+            screenHeight =  screenWidth / 1.5;
+			break;
+		case 3:
+			screenWidth = std::atoi(argv[1]);
+			screenHeight = std::atoi(argv[2]);
+			break;
+		default:
+			std::cout << "Incorrect number of command line arguments" << std::endl;
+			exit(EXIT_FAILURE);
+	}
+
+    mb(screenWidth, screenHeight);
+
+	return 0;
 }

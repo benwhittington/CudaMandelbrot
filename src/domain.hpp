@@ -32,33 +32,33 @@ struct Domain {
     }
 
 
-    void zoomIn() {
+    void ZoomIn() {
         zoomIn(m_minX, m_maxX);
         zoomIn(m_minY, m_maxY);
     }
 
-    void zoomOut() {
+    void ZoomOut() {
         zoomOut(m_minX, m_maxX);
         zoomOut(m_minY, m_maxY);
     }
 
-    void up() { // shift the content not the view
+    void Up() { // shift the content not the view
         neg(m_minY, m_maxY);
     }
 
-    void down() { // shift the content not the view
+    void Down() { // shift the content not the view
         pos(m_minY, m_maxY);
     }
 
-    void left() {
+    void Left() {
         neg(m_minX, m_maxX);
     }
 
-    void right() {
+    void Right() {
         pos(m_minX, m_maxX);
     }
 
-    void reset() {
+    void Reset() {
         m_minX = m_initMinX;
         m_maxX = m_initMaxX;
         m_minY = m_initMinY;
