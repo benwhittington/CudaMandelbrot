@@ -149,11 +149,12 @@ private:
         cuda_peek_last_error();
     }
 
-    void PopulateCharacters() {
-        MapValuesToChars<<<m_pScreen->PixelsY(), m_pScreen->PixelsX()>>>(m_pDevFloatsOut, m_pDevCharsOut, m_paddingX, m_paddingY);
-        cuda_sync();
-        cuda_peek_last_error();
-    }    
+    // see below
+    // void PopulateCharacters() {
+    //     MapValuesToChars<<<m_pScreen->PixelsY(), m_pScreen->PixelsX()>>>(m_pDevFloatsOut, m_pDevCharsOut, m_paddingX, m_paddingY);
+    //     cuda_sync();
+    //     cuda_peek_last_error();
+    // }    
 
 public:
     Mb8By8(Screen const* pScreen) : m_pScreen(pScreen) {
@@ -190,11 +191,12 @@ public:
         return m_arraySize;
     }
 
-    void operator()(const Domain<float_T>& domain, char* out) {
-        PopulateValues(domain);
-        PopulateCharacters();
-        cuda_mem_cpy(out, m_pDevCharsOut, sizeof(char) * m_arraySize, cudaMemcpyDeviceToHost);
-    }
+    // todo indexing doesn't work with funky padded device mem
+    // void operator()(const Domain<float_T>& domain, char* out) {
+    //     PopulateValues(domain);
+    //     PopulateCharacters();
+    //     cuda_mem_cpy(out, m_pDevCharsOut, sizeof(char) * m_arraySize, cudaMemcpyDeviceToHost);
+    // }
 
     void operator()(const Domain<float_T>& domain, float_T* out) {
         PopulateValues(domain);
