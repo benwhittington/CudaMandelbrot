@@ -8,7 +8,7 @@
 #include "cudaHelpers.cuh"
 
 static constexpr double sThreshold = 10.;
-static constexpr size_t sMaxIterations = 200;
+static constexpr size_t sMaxIterations = 100;
 
 // maps value from one range to another
 template <typename A, typename B, typename C>
@@ -24,15 +24,19 @@ __host__ __device__ float_T PerformMandelbrotIterations(float_T x, float_T y) {
 
     float_T zRe = 0.;
     float_T zIm = 0.;
-    for (size_t i = 0; i < sMaxIterations; ++i) {
+
+    static constexpr float_T threshold = static_cast<float_T>(sThreshold);
+    static constexpr float_T maxIterations = static_cast<size_t>(sMaxIterations);
+
+    for (size_t i = 0; i < maxIterations; ++i) {
         float_T zReTemp = zRe * zRe - zIm * zIm + cRe;
         zIm = 2 * zRe * zIm + cIm;
         zRe = zReTemp;
-        if (zRe * zRe + zIm * zIm > sThreshold) {
-            return static_cast<float_T>(i) / static_cast<float_T>(sMaxIterations);
+        if (zRe * zRe + zIm * zIm > threshold) {
+            return static_cast<float_T>(i) / static_cast<float_T>(maxIterations);
         }
     }
-    return static_cast<float_T>(1);
+    return static_cast<float_T>(1.);
 }
 
 // performs mandelbrot iterations on every point in domain
@@ -77,6 +81,7 @@ __global__ void RunMandelbrot8By8(Domain<float_T1> domain, float_T2* out) {
     
     const auto idx = indexRowMaj(row, col, pixelsX);
     const auto val = PerformMandelbrotIterations(x, y);
-
+    // printf("%s\n", __PRETTY_FUNCTION__);
+    printf("%2u | %f\n", idx, val);
     out[idx] = val;
 }
