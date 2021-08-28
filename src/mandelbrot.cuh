@@ -45,11 +45,34 @@ __global__ void RunMandelbrot(Domain<float_T1> domain, float_T2* out) {
     const auto col = threadIdx.x;
     const auto row = blockIdx.x;
 
-    const auto x = map(col, 0u, pixelsX, domain.m_minX, domain.m_maxX);
-    const auto y = map(row, 0u, pixelsY, domain.m_minY, domain.m_maxY);
+    const auto x = map(col, 0u, pixelsX, domain.MinX(), domain.MaxX());
+    const auto y = map(row, 0u, pixelsY, domain.MinY(), domain.MaxY());
     
     const auto idx = indexRowMaj(row, col, pixelsX);
     const auto val = PerformMandelbrotIterations(x, y);
 
     out[idx] = val;
+}
+
+// performs mandelbrot iterations on every point in domain
+// expects blockDim.x == blockDim.y == 8, pixelsY == gridDim.x
+template<typename float_T1, typename float_T2>
+__global__ void RunMandelbrot8By8(Domain<float_T1> domain, float_T2* out) {
+    const auto pixelsX = blockDim.x;
+    const auto pixelsY = gridDim.x;
+
+    const auto col = blockIdx.x * blockDim.x + threadIdx.x;
+    const auto row = blockIdx.y * blockDim.y + threadIdx.y;
+
+    // printf("row: %u, col %u\n", row, col);
+
+    if (row < pixelsY && col < pixelsX) {
+        const auto x = map(col, 0u, pixelsX, domain.MinX(), domain.MaxX());
+        const auto y = map(row, 0u, pixelsY, domain.MinY(), domain.MaxY());
+        
+        const auto idx = indexRowMaj(row, col, pixelsX);
+        const auto val = PerformMandelbrotIterations(x, y);
+
+        out[idx] = val;
+    }
 }
