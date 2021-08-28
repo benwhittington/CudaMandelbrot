@@ -88,22 +88,6 @@ void PrintChars(const Screen& screen, const char* charsOut) {
     }
 }
 
-// writes raw values to out
-template <typename float_T1, typename float_T2>
-void RunMandelbrotDevice(const Domain<float_T1>& domain, const Screen& screen, float_T2* out) {
-    float_T2* devOut;
-    cuda_malloc(reinterpret_cast<void**>(&devOut), sizeof(float_T2) * screen.m_numPixels);
-
-    RunMandelbrot<<<screen.PixelsY(), screen.PixelsX()>>>(domain, devOut);
-
-    cuda_sync();
-    cuda_peek_last_error();
-
-    cuda_mem_cpy(out, devOut, sizeof(float_T2) * screen.m_numPixels, cudaMemcpyDeviceToHost);
-
-    cuda_free(devOut);
-}
-
 // allocates device memory once when instantiated, writes rendered ascii symbols to out
 // template parm specifies type to use on device
 template<typename float_T1>
@@ -111,26 +95,27 @@ class Mb1ByCols {
 private:
     float_T1* m_devOut;
     char* m_devCharsOut;
+    Screen const* m_screen;
+    dim3 m_blockDim;
+    dim3 m_gridDim;
 
-    void GetValues(const Domain<float_T1>& domain, const Screen& screen) {
-        RunMandelbrot<<<screen.PixelsY(), screen.PixelsX()>>>(domain, m_devOut);
-
+    void GetValues(const Domain<float_T1>& domain) {
+        RunMandelbrot<<<m_screen->PixelsY(), m_screen->PixelsX()>>>(domain, m_devOut);
         cuda_sync();
         cuda_peek_last_error();
     }
 
-    void GetChars(const Screen& screen) {
-        MapValuesToChars<<<screen.PixelsY(), screen.PixelsX()>>>(m_devOut, m_devCharsOut);
-
+    void GetChars() {
+        MapValuesToChars<<<m_screen->PixelsY(), m_screen->PixelsX()>>>(m_devOut, m_devCharsOut);
         cuda_sync();
         cuda_peek_last_error();
     }
 
 public:
-    Mb1ByCols(size_t numPixels) {
-        cuda_malloc(reinterpret_cast<void **>(&m_devOut), sizeof(float_T1) * numPixels);
+    Mb1ByCols(Screen const* screen) : m_screen(screen) {
+        cuda_malloc(reinterpret_cast<void **>(&m_devOut), sizeof(float_T1) * m_screen->NumPixels());
         // todo: fix potentially unused memory
-        cuda_malloc(reinterpret_cast<void**>(&m_devCharsOut), sizeof(char) * numPixels);
+        cuda_malloc(reinterpret_cast<void**>(&m_devCharsOut), sizeof(char) * m_screen->NumPixels());
     }
 
     ~Mb1ByCols() {
@@ -138,17 +123,15 @@ public:
         cuda_free(m_devCharsOut);
     }
 
-    void operator()(const Domain<float_T1>& domain, const Screen& screen, char* out) {
-        GetValues(domain, screen);
-        GetChars(screen);
-
-        cuda_mem_cpy(out, m_devCharsOut, sizeof(char) * screen.NumPixels(), cudaMemcpyDeviceToHost);
+    void operator()(const Domain<float_T1>& domain, char* out, float_T1 scaleFactor) {
+        GetValues(domain);
+        GetChars();
+        cuda_mem_cpy(out, m_devCharsOut, sizeof(char) * m_screen->NumPixels(), cudaMemcpyDeviceToHost);
     }
 
-    void operator()(const Domain<float_T1>& domain, const Screen& screen, float_T1* out) {
-        GetValues(domain, screen);
-
-        cuda_mem_cpy(out, m_devOut, sizeof(float_T1) * screen.NumPixels(), cudaMemcpyDeviceToHost);
+    void operator()(const Domain<float_T1>& domain, float_T1* out, float_T1 scaleFactor) {
+        GetValues(domain);
+        cuda_mem_cpy(out, m_devOut, sizeof(float_T1) * m_screen->NumPixels(), cudaMemcpyDeviceToHost);
     }
 };
 
@@ -157,31 +140,39 @@ class Mb8By8 {
 private:
     float_T1* m_devOut;
     char* m_devCharsOut;
+    Screen const* m_screen;
+    dim3 m_blockDim;
+    dim3 m_gridDim;
 
-    void GetValues(const Domain<float_T1>& domain, const Screen& screen) {
-        const dim3 threads(8, 8, 1);
-        const unsigned int blocksX = static_cast<unsigned int>(1 + (screen.PixelsX() - 1) / 8);
-        const unsigned int blocksY = static_cast<unsigned int>(1 + (screen.PixelsY() - 1) / 8);
-        const dim3 blocks(blocksX, blocksY, 1);
-
-        RunMandelbrot8By8<<<blocks, threads>>>(domain, m_devOut);
-
+    void GetValues(const Domain<float_T1>& domain) {
+        RunMandelbrot8By8<<<m_gridDim, m_blockDim>>>(domain, m_devOut);
         cuda_sync();
         cuda_peek_last_error();
     }
 
-    void GetChars(const Screen& screen) {
-        MapValuesToChars<<<screen.PixelsY(), screen.PixelsX()>>>(m_devOut, m_devCharsOut);
-
+    void GetChars() {
+        MapValuesToChars<<<m_screen->PixelsY(), m_screen->PixelsX()>>>(m_devOut, m_devCharsOut);
         cuda_sync();
         cuda_peek_last_error();
     }    
 
 public:
-    Mb8By8(size_t numPixels) {
-        cuda_malloc(reinterpret_cast<void **>(&m_devOut), sizeof(float_T1) * numPixels);
+    Mb8By8(Screen const* screen) : m_screen(screen) {
+        m_blockDim = dim3(8, 8, 1);
+        const size_t blocksX = static_cast<unsigned int>(1 + (m_screen->PixelsX() - 1) / 8);
+        const size_t blocksY = static_cast<unsigned int>(1 + (m_screen->PixelsY() - 1) / 8);
+        m_gridDim = dim3(blocksX, blocksY, 1);
+
+        // over allocate here so there's no branching in the kernel
+        const size_t arraySize = blocksX * 8 * blocksY * 8;
+        cuda_malloc(reinterpret_cast<void **>(&m_devOut), sizeof(float_T1) * arraySize);
         // todo: fix potentially used memory
-        cuda_malloc(reinterpret_cast<void**>(&m_devCharsOut), sizeof(char) * numPixels);
+        cuda_malloc(reinterpret_cast<void**>(&m_devCharsOut), sizeof(char) * arraySize);
+
+        std::cout 
+            << "Screen is " << m_screen->PixelsX() << " by " << m_screen->PixelsY() << "\n"
+            << "Sucessfully allocated " << blocksX * 8 << " by " << blocksY * 8 << "\n"
+            << std::endl;
     }
 
     ~Mb8By8() {
@@ -189,38 +180,16 @@ public:
         cuda_free(m_devCharsOut);
     }
 
-    void operator()(const Domain<float_T1>& domain, const Screen& screen, float_T1* out) {
-        GetValues(domain, screen, out);
+    void operator()(const Domain<float_T1>& domain, char* out) {
+        GetValues(domain);
+        GetChars();
+
+        cuda_mem_cpy(out, m_devCharsOut, sizeof(char) * m_screen->NumPixels(), cudaMemcpyDeviceToHost);
     }
 
-    void operator()(const Domain<float_T1>& domain, const Screen& screen, char* out) {
-        GetValues(domain, screen, out);
+    void operator()(const Domain<float_T1>& domain, float_T1* out) {
+        GetValues(domain);
 
-        GetChars(screen, out);
+        cuda_mem_cpy(out, m_devOut, sizeof(char) * m_screen->NumPixels(), cudaMemcpyDeviceToHost);
     }
 };
-
-// allocates/frees device memory on every call, writes ascii characters to out
-template <typename float_T>
-void RunAndRenderMandelbrotDevice(const Domain<float_T>& domain, const Screen& screen, char* out) {
-    unsigned int* devOut;
-    char* devCharsOut;
-
-    cuda_malloc(reinterpret_cast<void**>(&devOut), sizeof(unsigned int) * screen.NumPixels());
-    cuda_malloc(reinterpret_cast<void**>(&devCharsOut), sizeof(char) * screen.NumPixels());
-
-    RunMandelbrot<<<screen.PixelsY(), screen.PixelsX()>>>(domain, devOut);
-
-    cuda_sync();
-    cuda_peek_last_error();
-
-    MapValuesToChars<<<screen.PixelsY(), screen.PixelsX()>>>(devOut, devCharsOut);
-
-    cuda_sync();
-    cuda_peek_last_error();
-
-    cuda_mem_cpy(out, devCharsOut, sizeof(char) * screen.NumPixels(), cudaMemcpyDeviceToHost);
-
-    cuda_free(devOut);
-    cuda_free(devCharsOut);
-}

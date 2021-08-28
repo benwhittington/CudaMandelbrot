@@ -8,7 +8,7 @@
 #include "cudaHelpers.cuh"
 
 static constexpr double sThreshold = 10.;
-static constexpr size_t sMaxIterations = 51;
+static constexpr size_t sMaxIterations = 200;
 
 // maps value from one range to another
 template <typename A, typename B, typename C>
@@ -41,7 +41,6 @@ template<typename float_T1, typename float_T2>
 __global__ void RunMandelbrot(Domain<float_T1> domain, float_T2* out) {
     const auto pixelsX = blockDim.x;
     const auto pixelsY = gridDim.x;
-
     const auto col = threadIdx.x;
     const auto row = blockIdx.x;
 
@@ -55,24 +54,29 @@ __global__ void RunMandelbrot(Domain<float_T1> domain, float_T2* out) {
 }
 
 // performs mandelbrot iterations on every point in domain
-// expects blockDim.x == blockDim.y == 8, pixelsY == gridDim.x
+// expects:
+//      blockDim.x == blockDim.y == 8
+//      pixelsX == gridDim.x * 8
+//      pixelsY == gridDim.y * 8
+// NOTE: Does not check for out of bounds when indexing out,
+// out MUST have dimensions at least as big as each axis of
+// your input pixels rounded up to the nearest multiple of 8
 template<typename float_T1, typename float_T2>
 __global__ void RunMandelbrot8By8(Domain<float_T1> domain, float_T2* out) {
-    const auto pixelsX = blockDim.x;
-    const auto pixelsY = gridDim.x;
+    const auto pixelsX = gridDim.x * blockDim.x;
+    const auto pixelsY = gridDim.y * blockDim.y;
 
     const auto col = blockIdx.x * blockDim.x + threadIdx.x;
     const auto row = blockIdx.y * blockDim.y + threadIdx.y;
+    // printf("%u | ", row);
+    // printf("%u | ", col);
+    // printf("%u %u\n", blockIdx.x, blockIdx.y);
+    // printf("%2u %2u\n", row, col);
+    const auto x = map(col, 0u, pixelsX, domain.MinX(), domain.MaxX());
+    const auto y = map(row, 0u, pixelsY, domain.MinY(), domain.MaxY());
+    
+    const auto idx = indexRowMaj(row, col, pixelsX);
+    const auto val = PerformMandelbrotIterations(x, y);
 
-    // printf("row: %u, col %u\n", row, col);
-
-    if (row < pixelsY && col < pixelsX) {
-        const auto x = map(col, 0u, pixelsX, domain.MinX(), domain.MaxX());
-        const auto y = map(row, 0u, pixelsY, domain.MinY(), domain.MaxY());
-        
-        const auto idx = indexRowMaj(row, col, pixelsX);
-        const auto val = PerformMandelbrotIterations(x, y);
-
-        out[idx] = val;
-    }
+    out[idx] = val;
 }
