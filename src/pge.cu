@@ -13,12 +13,12 @@
 #include "renderMandelbrot.cuh"
 #include "screen.hpp"
 
-template<typename float_T>
+template<typename float_T, typename Runner_T>
 class Mandelbrot : public olc::PixelGameEngine {
 private:
 	std::unique_ptr<Domain<float_T>> m_domain;
 	std::unique_ptr<Screen> m_screen;
-	std::unique_ptr<Mb8By8<float_T>> m_runner;
+	std::unique_ptr<Runner_T> m_runner;
 	// std::unique_ptr<Mb1ByCols<float_T>> m_runner;
 	std::vector<float_T> m_out;
 	float_T m_lastMaxValue;
@@ -41,7 +41,7 @@ public:
 
 		m_domain.reset(new Domain<float_T>(minX, maxX, minY, maxY));
 		m_screen.reset(new Screen(*m_domain, ScreenWidth(), ScreenHeight()));
-		m_runner.reset(new Mb8By8<float_T>(m_screen.get()));
+		m_runner.reset(new Runner_T(m_screen.get()));
 		// m_runner.reset(new Mb1ByCols<float_T>(m_screen.get()));
 		m_out = std::vector<float_T>(m_screen->NumPixels());
 
@@ -139,7 +139,7 @@ int main(int argc, char *argv[]) {
 			exit(EXIT_FAILURE);
 	}
 
-	Mandelbrot<double> demo;
+	Mandelbrot<double, Mb8By8<double>> demo;
 	if (demo.Construct(screenWidth, screenHeight, pixelSize, pixelSize, false)) {
 		demo.Start();
 	}
