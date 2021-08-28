@@ -73,10 +73,9 @@ public:
 		m_lastMinValue = thisMinValue;
 	}
 
-	bool OnUserUpdate(float) override {
+	void GetUserInput() {
 		using K = olc::Key;
-
-        if (GetKey(K::W).bPressed) {
+		if (GetKey(K::W).bPressed) {
             m_domain->Up();
 			m_updateRequired = true;
         }
@@ -109,6 +108,11 @@ public:
             m_domain->ZoomOut();
 			m_updateRequired = true;
         }
+	}
+
+	bool OnUserUpdate(float) override {
+		GetUserInput()
+
 
 		if (m_updateRequired) {
 			(*m_runner)(*m_domain, m_out.data());
