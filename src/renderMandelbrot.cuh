@@ -29,28 +29,6 @@ __host__ __device__ char MapValueToChar(T val) {
     }
 }
 
-// maps values and prints grid
-template<typename int_T>
-void RenderMandelbrot(const Screen& screen, const std::vector<int_T>& arr) {
-    for (size_t row = 0; row < screen.PixelsY(); ++row) {
-        for (size_t col = 0; col < screen.PixelsX(); ++col) {
-            const int_T val = arr[indexRowMaj(row, col, screen.PixelsX())];
-            auto out = MapValueToChar(val);
-
-            if (row == 0 || row == screen.PixelsY() - 1) {
-                out = '+';
-            } 
-            else if (col == 0 || col == screen.PixelsX() - 1) {
-                out = '+';
-            }
-
-            std::cout << out;
-        }
-        std::cout << std::setfill(' ') << std::setw(5);
-        std::cout << row <<  std::endl;
-    }
-}
-
 // maps values to ascii characters
 // expects pixelsY == gridDim.x, blockDim.x == pixelsX
 template<typename int_T>
@@ -93,103 +71,103 @@ void PrintChars(const Screen& screen, const char* charsOut) {
 template<typename float_T1>
 class Mb1ByCols {
 private:
-    float_T1* m_devOut;
-    char* m_devCharsOut;
-    Screen const* m_screen;
+    float_T1* m_pDevFloatsOut;
+    char* m_pDevCharsOut;
+    Screen const* m_pScreen;
     dim3 m_blockDim;
     dim3 m_gridDim;
 
-    void GetValues(const Domain<float_T1>& domain) {
-        RunMandelbrot<<<m_screen->PixelsY(), m_screen->PixelsX()>>>(domain, m_devOut);
+    void PopulateValues(const Domain<float_T1>& domain) {
+        RunMandelbrot<<<m_pScreen->PixelsY(), m_pScreen->PixelsX()>>>(domain, m_pDevFloatsOut);
         cuda_sync();
         cuda_peek_last_error();
     }
 
-    void GetChars() {
-        MapValuesToChars<<<m_screen->PixelsY(), m_screen->PixelsX()>>>(m_devOut, m_devCharsOut);
+    void PopulateCharacters() {
+        MapValuesToChars<<<m_pScreen->PixelsY(), m_pScreen->PixelsX()>>>(m_pDevFloatsOut, m_pDevCharsOut);
         cuda_sync();
         cuda_peek_last_error();
     }
 
 public:
-    Mb1ByCols(Screen const* screen) : m_screen(screen) {
-        cuda_malloc(reinterpret_cast<void **>(&m_devOut), sizeof(float_T1) * m_screen->NumPixels());
-        // todo: fix potentially unused memory
-        cuda_malloc(reinterpret_cast<void**>(&m_devCharsOut), sizeof(char) * m_screen->NumPixels());
+    Mb1ByCols(Screen const* screen) : m_pScreen(screen) {
+        cuda_malloc(reinterpret_cast<void **>(&m_pDevFloatsOut), sizeof(float_T1) * m_pScreen->NumPixels());
+        // todo: fix potentially ununused memory
+        cuda_malloc(reinterpret_cast<void**>(&m_pDevCharsOut), sizeof(char) * m_pScreen->NumPixels());
     }
 
     ~Mb1ByCols() {
-        cuda_free(m_devOut);
-        cuda_free(m_devCharsOut);
+        cuda_free(m_pDevFloatsOut);
+        cuda_free(m_pDevCharsOut);
     }
 
-    void operator()(const Domain<float_T1>& domain, char* out, float_T1 scaleFactor) {
-        GetValues(domain);
-        GetChars();
-        cuda_mem_cpy(out, m_devCharsOut, sizeof(char) * m_screen->NumPixels(), cudaMemcpyDeviceToHost);
+    void operator()(const Domain<float_T1>& domain, char* out) {
+        PopulateValues(domain);
+        PopulateCharacters();
+        cuda_mem_cpy(out, m_pDevCharsOut, sizeof(char) * m_pScreen->NumPixels(), cudaMemcpyDeviceToHost);
     }
 
-    void operator()(const Domain<float_T1>& domain, float_T1* out, float_T1 scaleFactor) {
-        GetValues(domain);
-        cuda_mem_cpy(out, m_devOut, sizeof(float_T1) * m_screen->NumPixels(), cudaMemcpyDeviceToHost);
+    void operator()(const Domain<float_T1>& domain, float_T1* out) {
+        PopulateValues(domain);
+        cuda_mem_cpy(out, m_pDevFloatsOut, sizeof(float_T1) * m_pScreen->NumPixels(), cudaMemcpyDeviceToHost);
     }
 };
 
 template<typename float_T1>
 class Mb8By8 {
 private:
-    float_T1* m_devOut;
-    char* m_devCharsOut;
-    Screen const* m_screen;
+    float_T1* m_pDevFloatsOut;
+    char* m_pDevCharsOut;
+    Screen const* m_pScreen;
     dim3 m_blockDim;
     dim3 m_gridDim;
 
-    void GetValues(const Domain<float_T1>& domain) {
-        RunMandelbrot8By8<<<m_gridDim, m_blockDim>>>(domain, m_devOut);
+    void PopulateValues(const Domain<float_T1>& domain) {
+        RunMandelbrot8By8<<<m_gridDim, m_blockDim>>>(domain, m_pDevFloatsOut);
         cuda_sync();
         cuda_peek_last_error();
     }
 
-    void GetChars() {
-        MapValuesToChars<<<m_screen->PixelsY(), m_screen->PixelsX()>>>(m_devOut, m_devCharsOut);
+    void PopulateCharacters() {
+        MapValuesToChars<<<m_pScreen->PixelsY(), m_pScreen->PixelsX()>>>(m_pDevFloatsOut, m_pDevCharsOut);
         cuda_sync();
         cuda_peek_last_error();
     }    
 
 public:
-    Mb8By8(Screen const* screen) : m_screen(screen) {
+    Mb8By8(Screen const* pScreen) : m_pScreen(pScreen) {
         m_blockDim = dim3(8, 8, 1);
-        const size_t blocksX = static_cast<unsigned int>(1 + (m_screen->PixelsX() - 1) / 8);
-        const size_t blocksY = static_cast<unsigned int>(1 + (m_screen->PixelsY() - 1) / 8);
+        const size_t blocksX = static_cast<unsigned int>(1 + (m_pScreen->PixelsX() - 1) / 8);
+        const size_t blocksY = static_cast<unsigned int>(1 + (m_pScreen->PixelsY() - 1) / 8);
         m_gridDim = dim3(blocksX, blocksY, 1);
 
         // over allocate here so there's no branching in the kernel
         const size_t arraySize = blocksX * 8 * blocksY * 8;
-        cuda_malloc(reinterpret_cast<void **>(&m_devOut), sizeof(float_T1) * arraySize);
-        // todo: fix potentially used memory
-        cuda_malloc(reinterpret_cast<void**>(&m_devCharsOut), sizeof(char) * arraySize);
+        cuda_malloc(reinterpret_cast<void **>(&m_pDevFloatsOut), sizeof(float_T1) * arraySize);
+        // todo: fix potentially unused memory
+        cuda_malloc(reinterpret_cast<void**>(&m_pDevCharsOut), sizeof(char) * arraySize);
 
         std::cout 
-            << "Screen is " << m_screen->PixelsX() << " by " << m_screen->PixelsY() << "\n"
-            << "Sucessfully allocated " << blocksX * 8 << " by " << blocksY * 8 << "\n"
+            << "Screen is " << m_pScreen->PixelsX() << " by " << m_pScreen->PixelsY() << "\n"
+            << "Sucessfully allocated " << blocksX * 8 << " by " << blocksY * 8 << " of float_T in device mem"<<"\n"
             << std::endl;
     }
 
     ~Mb8By8() {
-        cuda_free(m_devOut);
-        cuda_free(m_devCharsOut);
+        cuda_free(m_pDevFloatsOut);
+        cuda_free(m_pDevCharsOut);
     }
 
     void operator()(const Domain<float_T1>& domain, char* out) {
-        GetValues(domain);
-        GetChars();
+        PopulateValues(domain);
+        PopulateCharacters();
 
-        cuda_mem_cpy(out, m_devCharsOut, sizeof(char) * m_screen->NumPixels(), cudaMemcpyDeviceToHost);
+        cuda_mem_cpy(out, m_pDevCharsOut, sizeof(char) * m_pScreen->NumPixels(), cudaMemcpyDeviceToHost);
     }
 
     void operator()(const Domain<float_T1>& domain, float_T1* out) {
-        GetValues(domain);
+        PopulateValues(domain);
 
-        cuda_mem_cpy(out, m_devOut, sizeof(char) * m_screen->NumPixels(), cudaMemcpyDeviceToHost);
+        cuda_mem_cpy(out, m_pDevFloatsOut, sizeof(char) * m_pScreen->NumPixels(), cudaMemcpyDeviceToHost);
     }
 };
