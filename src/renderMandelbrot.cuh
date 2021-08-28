@@ -147,11 +147,6 @@ public:
         cuda_malloc(reinterpret_cast<void **>(&m_pDevFloatsOut), sizeof(float_T) * m_arraySize);
         // todo: fix potentially unused memory
         cuda_malloc(reinterpret_cast<void**>(&m_pDevCharsOut), sizeof(char) * m_arraySize);
-
-        std::cout 
-            << "Screen is " << m_pScreen->PixelsX() << " by " << m_pScreen->PixelsY() << "\n"
-            << "Sucessfully allocated " << blocksX * 8 << " by " << blocksY * 8 << " of float_T in device mem"<<"\n"
-            << std::endl;
     }
 
     ~Mb8By8() {
