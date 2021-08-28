@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 #include <olcPixelGameEngine.h>
+#include <cstdio>
 
 #include "cudaHelpers.cuh"
 #include "domain.hpp"
@@ -42,7 +43,7 @@ public:
 		m_screen.reset(new Screen(*m_domain, ScreenWidth(), ScreenHeight()));
 		m_runner.reset(new Mb8By8<float_T>(m_screen.get()));
 		// m_runner.reset(new Mb1ByCols<float_T>(m_screen.get()));
-		m_out = std::vector<float_T>((m_screen->NumPixels()));
+		m_out = std::vector<float_T>(m_screen->NumPixels());
 
 		return true;
 	}
@@ -51,20 +52,20 @@ public:
 		float_T thisMaxValue = 0;
 		float_T thisMinValue = 1;
 
-		for (size_t col = 0; col < ScreenWidth(); col++) {
-			for (size_t row = 0; row < ScreenHeight(); row++) {
+		for (size_t col = 0; col < m_screen->PixelsX(); col++) {
+			for (size_t row = 0; row < m_screen->PixelsY(); row++) {
 				const auto rawValue = m_out.data()[indexRowMaj(row, col, m_screen->PixelsX())];
 				const auto mappedValue = map(rawValue, m_lastMinValue, m_lastMaxValue, 0., 1.);
-				Draw(col, row, olc::Pixel(mappedValue * 200, mappedValue * 100, mappedValue * 100));
 				if (rawValue > thisMaxValue) {
 					thisMaxValue = rawValue;
 				}
 				else if (rawValue < thisMinValue) {
 					thisMinValue = rawValue;
 				}
+				Draw(col, row, olc::Pixel(mappedValue * 200, mappedValue * 100, mappedValue * 100));
 			}
 		}
-		std::cout << "------------------------" << std::endl;
+
 		m_lastMaxValue = thisMaxValue;
 		m_lastMinValue = thisMinValue;
 	}
@@ -73,36 +74,36 @@ public:
 		using K = olc::Key;
 
         if (GetKey(K::W).bPressed) {
-            m_domain->up();
+            m_domain->Up();
 			m_updateRequired = true;
         }
 		else if (GetKey(K::S).bPressed) {
-            m_domain->down();
+            m_domain->Down();
 			m_updateRequired = true;
 
         }
 		else if (GetKey(K::D).bPressed) {
-            m_domain->right();
+            m_domain->Right();
 			m_updateRequired = true;
 
         }
 		else if (GetKey(K::A).bPressed) {
-            m_domain->left();
+            m_domain->Left();
 			m_updateRequired = true;
 
         }
 		else if (GetKey(K::R).bPressed) {
-            m_domain->reset();
+            m_domain->Reset();
 			m_updateRequired = true;
 
         }
 		else if (GetKey(K::EQUALS).bHeld) {
-            m_domain->zoomIn();
+            m_domain->ZoomIn();
 			m_updateRequired = true;
 
         }
 		else if (GetKey(K::MINUS).bHeld) {
-            m_domain->zoomOut();
+            m_domain->ZoomOut();
 			m_updateRequired = true;
         }
 
@@ -118,7 +119,7 @@ public:
 
 int main(int argc, char *argv[]) {
 	int32_t screenWidth = 1024;
-	int32_t screenHeight = screenWidth / 1.5;
+	int32_t screenHeight = 688;
 	int32_t pixelSize = 1;
 
 	switch (argc) {
@@ -138,9 +139,10 @@ int main(int argc, char *argv[]) {
 			exit(EXIT_FAILURE);
 	}
 
-	Mandelbrot<float> demo;
-	if (demo.Construct(screenWidth, screenHeight, pixelSize, pixelSize, false))
+	Mandelbrot<double> demo;
+	if (demo.Construct(screenWidth, screenHeight, pixelSize, pixelSize, false)) {
 		demo.Start();
+	}
 
 	return 0;
 }

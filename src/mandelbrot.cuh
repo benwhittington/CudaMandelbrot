@@ -82,6 +82,5 @@ __global__ void RunMandelbrot8By8(Domain<float_T1> domain, float_T2* out) {
     const auto idx = indexRowMaj(row, col, pixelsX);
     const auto val = PerformMandelbrotIterations(x, y);
     // printf("%s\n", __PRETTY_FUNCTION__);
-    printf("%2u | %f\n", idx, val);
     out[idx] = val;
 }

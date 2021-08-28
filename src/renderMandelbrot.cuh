@@ -68,16 +68,16 @@ void PrintChars(const Screen& screen, const char* charsOut) {
 
 // allocates device memory once when instantiated, writes rendered ascii symbols to out
 // template parm specifies type to use on device
-template<typename float_T1>
+template<typename float_T>
 class Mb1ByCols {
 private:
-    float_T1* m_pDevFloatsOut;
+    float_T* m_pDevFloatsOut;
     char* m_pDevCharsOut;
     Screen const* m_pScreen;
     dim3 m_blockDim;
     dim3 m_gridDim;
 
-    void PopulateValues(const Domain<float_T1>& domain) {
+    void PopulateValues(const Domain<float_T>& domain) {
         RunMandelbrot<<<m_pScreen->PixelsY(), m_pScreen->PixelsX()>>>(domain, m_pDevFloatsOut);
         cuda_sync();
         cuda_peek_last_error();
@@ -91,7 +91,7 @@ private:
 
 public:
     Mb1ByCols(Screen const* screen) : m_pScreen(screen) {
-        cuda_malloc(reinterpret_cast<void **>(&m_pDevFloatsOut), sizeof(float_T1) * m_pScreen->NumPixels());
+        cuda_malloc(reinterpret_cast<void **>(&m_pDevFloatsOut), sizeof(float_T) * m_pScreen->NumPixels());
         // todo: fix potentially ununused memory
         cuda_malloc(reinterpret_cast<void**>(&m_pDevCharsOut), sizeof(char) * m_pScreen->NumPixels());
     }
@@ -101,28 +101,29 @@ public:
         cuda_free(m_pDevCharsOut);
     }
 
-    void operator()(const Domain<float_T1>& domain, char* out) {
+    void operator()(const Domain<float_T>& domain, char* out) {
         PopulateValues(domain);
         PopulateCharacters();
         cuda_mem_cpy(out, m_pDevCharsOut, sizeof(char) * m_pScreen->NumPixels(), cudaMemcpyDeviceToHost);
     }
 
-    void operator()(const Domain<float_T1>& domain, float_T1* out) {
+    void operator()(const Domain<float_T>& domain, float_T* out) {
         PopulateValues(domain);
-        cuda_mem_cpy(out, m_pDevFloatsOut, sizeof(float_T1) * m_pScreen->NumPixels(), cudaMemcpyDeviceToHost);
+        cuda_mem_cpy(out, m_pDevFloatsOut, sizeof(float_T) * m_pScreen->NumPixels(), cudaMemcpyDeviceToHost);
     }
 };
 
-template<typename float_T1>
+template<typename float_T>
 class Mb8By8 {
 private:
-    float_T1* m_pDevFloatsOut;
+    float_T* m_pDevFloatsOut;
     char* m_pDevCharsOut;
     Screen const* m_pScreen;
     dim3 m_blockDim;
     dim3 m_gridDim;
+    size_t m_arraySize;
 
-    void PopulateValues(const Domain<float_T1>& domain) {
+    void PopulateValues(const Domain<float_T>& domain) {
         RunMandelbrot8By8<<<m_gridDim, m_blockDim>>>(domain, m_pDevFloatsOut);
         cuda_sync();
         cuda_peek_last_error();
@@ -142,10 +143,10 @@ public:
         m_gridDim = dim3(blocksX, blocksY, 1);
 
         // over allocate here so there's no branching in the kernel
-        const size_t arraySize = blocksX * 8 * blocksY * 8;
-        cuda_malloc(reinterpret_cast<void **>(&m_pDevFloatsOut), sizeof(float_T1) * arraySize);
+        m_arraySize = blocksX * 8 * blocksY * 8;
+        cuda_malloc(reinterpret_cast<void **>(&m_pDevFloatsOut), sizeof(float_T) * m_arraySize);
         // todo: fix potentially unused memory
-        cuda_malloc(reinterpret_cast<void**>(&m_pDevCharsOut), sizeof(char) * arraySize);
+        cuda_malloc(reinterpret_cast<void**>(&m_pDevCharsOut), sizeof(char) * m_arraySize);
 
         std::cout 
             << "Screen is " << m_pScreen->PixelsX() << " by " << m_pScreen->PixelsY() << "\n"
@@ -158,16 +159,18 @@ public:
         cuda_free(m_pDevCharsOut);
     }
 
-    void operator()(const Domain<float_T1>& domain, char* out) {
-        PopulateValues(domain);
-        PopulateCharacters();
-
-        cuda_mem_cpy(out, m_pDevCharsOut, sizeof(char) * m_pScreen->NumPixels(), cudaMemcpyDeviceToHost);
+    size_t ArraySize() {
+        return m_arraySize;
     }
 
-    void operator()(const Domain<float_T1>& domain, float_T1* out) {
+    void operator()(const Domain<float_T>& domain, char* out) {
         PopulateValues(domain);
+        PopulateCharacters();
+        cuda_mem_cpy(out, m_pDevCharsOut, sizeof(char) * m_arraySize, cudaMemcpyDeviceToHost);
+    }
 
-        cuda_mem_cpy(out, m_pDevFloatsOut, sizeof(char) * m_pScreen->NumPixels(), cudaMemcpyDeviceToHost);
+    void operator()(const Domain<float_T>& domain, float_T* out) {
+        PopulateValues(domain);
+        cuda_mem_cpy(out, m_pDevFloatsOut, sizeof(float_T) * m_arraySize, cudaMemcpyDeviceToHost);
     }
 };
