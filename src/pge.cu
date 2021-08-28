@@ -46,7 +46,7 @@ public:
 		m_screen.reset(new Screen(ScreenWidth(), ScreenHeight()));
 		m_runner.reset(new Runner_T(m_screen.get()));
 		m_indexer.reset(new Indexer<RowMaj>(m_screen->PixelsX(), m_runner->PaddingX()));
-		m_out = std::vector<float_T>(m_screen->NumPixels());
+		m_out = std::vector<float_T>(m_runner->ArraySize());
 
 		return true;
 	}

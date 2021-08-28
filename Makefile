@@ -36,7 +36,7 @@ target: $(ASCII)
 
 clean: rmobjs rmtarget
 
-$(ASCII): ./src/main.cu ./src/renderMandelbrot.cuh ./src/domain.hpp ./src/screen.hpp ./src/mandelbrot.cuh ./src/cudaHelpers.cuh
+$(ASCII): ./src/ascii.cu ./src/renderMandelbrot.cuh ./src/domain.hpp ./src/screen.hpp ./src/mandelbrot.cuh ./src/cudaHelpers.cuh
 	$(NVXX) -o $@ $< $(NVXXFLAGS) $(LDFLAGS)
 
 $(PGE): ./src/pge.cu ./src/renderMandelbrot.cuh ./src/domain.hpp ./src/screen.hpp ./src/mandelbrot.cuh ./src/cudaHelpers.cuh

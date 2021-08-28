@@ -31,23 +31,23 @@ __host__ __device__ char MapValueToChar(T val) {
 
 // maps values to ascii characters
 // expects pixelsY == gridDim.x, blockDim.x == pixelsX
-template<typename int_T>
-__global__ void MapValuesToChars(const int_T* arr, char* charArr) {
-    const auto pixelsX = blockDim.x;
-    const auto pixelsY = gridDim.x;
+template<typename float_T>
+__global__ void MapValuesToChars(const float_T* arr, char* charArr, size_t paddingX = 0, size_t paddingY = 0) {
+    const size_t pixelsX = blockDim.x;
+    const size_t pixelsY = gridDim.x;
 
-    const auto col = threadIdx.x;
-    const auto row = blockIdx.x;
+    const size_t col = threadIdx.x;
+    const size_t row = blockIdx.x;
     char out;
 
-    if (row == 0 || row == pixelsY - 1) {
+    if (row == 0 || row == pixelsY - paddingY - 1) {
         out = '+';
     }
-    else if (col == 0 || col == pixelsX - 1) {
+    else if (col == 0 || col == pixelsX - paddingX - 1) {
         out = '+';
     }
     else {
-        const int_T val = arr[IndexRowMaj(row, col, pixelsX)];
+        const float_T val = arr[IndexRowMaj(row, col, pixelsX, paddingX)];
         out = MapValueToChar(val);
     }
 
@@ -55,10 +55,10 @@ __global__ void MapValuesToChars(const int_T* arr, char* charArr) {
 }
 
 // prints characters in charsOut in grid based on screen dims
-void PrintChars(const Screen& screen, const char* charsOut) {
+void PrintChars(const Screen& screen, const char* charsOut, size_t paddingX = 0) {
     for (size_t row = 0; row < screen.PixelsY(); ++row) {
         for (size_t col = 0; col < screen.PixelsX(); ++col) {
-            const char val = charsOut[IndexRowMaj(row, col, screen.PixelsX())];
+            const char val = charsOut[IndexRowMaj(row, col, screen.PixelsX(), paddingX)];
             std::cout << val;
         }
         std::cout << std::setfill(' ') << std::setw(5);
@@ -76,6 +76,9 @@ private:
     Screen const* m_pScreen;
     dim3 m_blockDim;
     dim3 m_gridDim;
+    size_t m_arraySize;
+    size_t m_paddingX;
+    size_t m_paddingY;
 
     void PopulateValues(const Domain<float_T>& domain) {
         RunMandelbrot<<<m_pScreen->PixelsY(), m_pScreen->PixelsX()>>>(domain, m_pDevFloatsOut);
@@ -84,21 +87,36 @@ private:
     }
 
     void PopulateCharacters() {
-        MapValuesToChars<<<m_pScreen->PixelsY(), m_pScreen->PixelsX()>>>(m_pDevFloatsOut, m_pDevCharsOut);
+        MapValuesToChars<<<m_pScreen->PixelsY(), m_pScreen->PixelsX()>>>(m_pDevFloatsOut, m_pDevCharsOut, m_paddingX, m_paddingY);
         cuda_sync();
         cuda_peek_last_error();
     }
 
 public:
     Mb1ByCols(Screen const* screen) : m_pScreen(screen) {
-        cuda_malloc(reinterpret_cast<void **>(&m_pDevFloatsOut), sizeof(float_T) * m_pScreen->NumPixels());
+        m_paddingX = 0;
+        m_paddingY = 0;
+        m_arraySize = m_pScreen->NumPixels();
+        cuda_malloc(reinterpret_cast<void **>(&m_pDevFloatsOut), sizeof(float_T) * m_arraySize);
         // todo: fix potentially ununused memory
-        cuda_malloc(reinterpret_cast<void**>(&m_pDevCharsOut), sizeof(char) * m_pScreen->NumPixels());
+        cuda_malloc(reinterpret_cast<void**>(&m_pDevCharsOut), sizeof(char) * m_arraySize);
     }
 
     ~Mb1ByCols() {
         cuda_free(m_pDevFloatsOut);
         cuda_free(m_pDevCharsOut);
+    }
+
+    size_t PaddingX() {
+        return m_paddingX;
+    }
+
+    size_t PaddingY() {
+        return m_paddingY;
+    }
+
+    size_t ArraySize() {
+        return m_arraySize;
     }
 
     void operator()(const Domain<float_T>& domain, char* out) {
@@ -132,7 +150,7 @@ private:
     }
 
     void PopulateCharacters() {
-        MapValuesToChars<<<m_pScreen->PixelsY(), m_pScreen->PixelsX()>>>(m_pDevFloatsOut, m_pDevCharsOut);
+        MapValuesToChars<<<m_pScreen->PixelsY(), m_pScreen->PixelsX()>>>(m_pDevFloatsOut, m_pDevCharsOut, m_paddingX, m_paddingY);
         cuda_sync();
         cuda_peek_last_error();
     }    
@@ -140,17 +158,19 @@ private:
 public:
     Mb8By8(Screen const* pScreen) : m_pScreen(pScreen) {
         m_blockDim = dim3(8, 8, 1);
+
         const size_t blocksX = static_cast<size_t>(1 + (m_pScreen->PixelsX() - 1) / 8);
         const size_t blocksY = static_cast<size_t>(1 + (m_pScreen->PixelsY() - 1) / 8);
         m_gridDim = dim3(blocksX, blocksY, 1);
         m_paddingX = blocksX * 8 - m_pScreen->PixelsX();
         m_paddingY = blocksY * 8 - m_pScreen->PixelsY();
-
         // over allocate here so there's no branching in the kernel
         m_arraySize = blocksX * 8 * blocksY * 8;
+        std::cout << "Attempting to allocate " << m_arraySize * (sizeof(float_T) + sizeof(char)) << " bytes" << std::endl;
         cuda_malloc(reinterpret_cast<void **>(&m_pDevFloatsOut), sizeof(float_T) * m_arraySize);
         // todo: fix potentially unused memory
         cuda_malloc(reinterpret_cast<void**>(&m_pDevCharsOut), sizeof(char) * m_arraySize);
+        std::cout << "success" << std::endl;
     }
 
     ~Mb8By8() {

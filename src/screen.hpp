@@ -6,9 +6,9 @@
 
 struct Screen {
     Screen(size_t pixelsX, size_t pixelsY) : m_pixelsX(pixelsX), 
-                                                               m_pixelsY(pixelsY) {
-        m_numPixels = m_pixelsX * m_pixelsY;
-    }
+                                             m_pixelsY(pixelsY),
+                                             m_numPixels(m_pixelsX * m_pixelsY) 
+    {}
 
     size_t PixelsX() const {
         return m_pixelsX;
