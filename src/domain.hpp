@@ -1,5 +1,8 @@
 #pragma once
 
+#include <cuda_runtime_api.h>
+#include <cuda_device_runtime_api.h>
+
 template<typename T>
 struct Domain {
     Domain(T minX, T maxX, T minY, T maxY) : m_minX(minX),
@@ -12,10 +15,22 @@ struct Domain {
                                              m_initMaxY(maxY)
     {}
 
-    T m_minX;
-    T m_maxX;
-    T m_minY;
-    T m_maxY;
+    __host__ __device__ T MinX() const {
+        return m_minX;
+    }
+
+    __host__ __device__ T MaxX() const {
+        return m_maxX;
+    }
+
+    __host__ __device__ T MinY() const {
+        return m_minY;
+    }
+
+    __host__ __device__ T MaxY() const {
+        return m_maxY;
+    }
+
 
     void zoomIn() {
         zoomIn(m_minX, m_maxX);
@@ -28,19 +43,19 @@ struct Domain {
     }
 
     void up() { // shift the content not the view
-        pos(m_minY, m_maxY);
-    }
-
-    void down() { // shift the content not the view
         neg(m_minY, m_maxY);
     }
 
+    void down() { // shift the content not the view
+        pos(m_minY, m_maxY);
+    }
+
     void left() {
-        pos(m_minX, m_maxX);
+        neg(m_minX, m_maxX);
     }
 
     void right() {
-        neg(m_minX, m_maxX);
+        pos(m_minX, m_maxX);
     }
 
     void reset() {
@@ -51,6 +66,11 @@ struct Domain {
     }
 
 private:
+    T m_minX;
+    T m_maxX;
+    T m_minY;
+    T m_maxY;
+
     T m_initMinX;
     T m_initMaxX;
     T m_initMinY;
