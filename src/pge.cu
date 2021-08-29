@@ -16,11 +16,9 @@
 template<typename float_T, typename Runner_T>
 class Mandelbrot : public olc::PixelGameEngine {
 private:
-	std::unique_ptr<Domain<float_T>> m_domain;
-	std::unique_ptr<Screen> m_screen;
-	std::unique_ptr<Runner_T> m_runner;
-	std::unique_ptr<Indexer<RowMaj>> m_indexer;
-	std::vector<float_T> m_out;
+	std::unique_ptr<Domain<float_T>> m_pDomain;
+	std::unique_ptr<Screen> m_pScreen;
+	std::unique_ptr<Runner_T> m_pRunner;
 
 	float_T m_lastMaxValue;
 	float_T m_lastMinValue;
@@ -42,11 +40,9 @@ public:
 		constexpr float_T minY = -1;
 		constexpr float_T maxY = 1;
 
-		m_domain.reset(new Domain<float_T>(minX, maxX, minY, maxY));
-		m_screen.reset(new Screen(ScreenWidth(), ScreenHeight()));
-		m_runner.reset(new Runner_T(m_screen.get()));
-		m_indexer.reset(new Indexer<RowMaj>(m_screen->PixelsX(), m_runner->PaddingX()));
-		m_out = std::vector<float_T>(m_runner->ArraySize());
+		m_pDomain.reset(new Domain<float_T>(minX, maxX, minY, maxY));
+		m_pScreen.reset(new Screen(ScreenWidth(), ScreenHeight()));
+		m_pRunner.reset(new Runner_T(m_pScreen.get()));
 
 		return true;
 	}
@@ -55,9 +51,9 @@ public:
 		float_T thisMaxValue = 0;
 		float_T thisMinValue = 1;
 
-		for (size_t col = 0; col < m_screen->PixelsX(); col++) {
-			for (size_t row = 0; row < m_screen->PixelsY(); row++) {
-				const auto rawValue = m_out.data()[(*m_indexer)(row, col)];
+		for (size_t col = 0; col < m_pScreen->PixelsX(); col++) {
+			for (size_t row = 0; row < m_pScreen->PixelsY(); row++) {
+				const auto rawValue = m_pRunner->GetValue(row, col);
 				const auto mappedValue = map(rawValue, m_lastMinValue, m_lastMaxValue, 0., 1.);
 				if (rawValue > thisMaxValue) {
 					thisMaxValue = rawValue;
@@ -76,46 +72,45 @@ public:
 	void GetUserInput() {
 		using K = olc::Key;
 		if (GetKey(K::W).bPressed) {
-            m_domain->Up();
+            m_pDomain->Up();
 			m_updateRequired = true;
         }
 		else if (GetKey(K::S).bPressed) {
-            m_domain->Down();
+            m_pDomain->Down();
 			m_updateRequired = true;
 
         }
 		else if (GetKey(K::D).bPressed) {
-            m_domain->Right();
+            m_pDomain->Right();
 			m_updateRequired = true;
 
         }
 		else if (GetKey(K::A).bPressed) {
-            m_domain->Left();
+            m_pDomain->Left();
 			m_updateRequired = true;
 
         }
 		else if (GetKey(K::R).bPressed) {
-            m_domain->Reset();
+            m_pDomain->Reset();
 			m_updateRequired = true;
 
         }
 		else if (GetKey(K::EQUALS).bHeld) {
-            m_domain->ZoomIn();
+            m_pDomain->ZoomIn();
 			m_updateRequired = true;
 
         }
 		else if (GetKey(K::MINUS).bHeld) {
-            m_domain->ZoomOut();
+            m_pDomain->ZoomOut();
 			m_updateRequired = true;
         }
 	}
 
 	bool OnUserUpdate(float) override {
-		GetUserInput()
-
+		GetUserInput();
 
 		if (m_updateRequired) {
-			(*m_runner)(*m_domain, m_out.data());
+			m_pRunner->Run(*m_pDomain);
 			DrawScreen();
 			m_updateRequired = false;
 		}
@@ -149,7 +144,8 @@ int main(int argc, char *argv[]) {
 	typedef double float_T;
 
 	Mandelbrot<float_T, Mb8By8<float_T>> demo;
-	if (demo.Construct(screenWidth, screenHeight, pixelSize, pixelSize, false)) {
+	// Mandelbrot<float_T, Mb1ByCols<float_T>> demo;
+	if (demo.Construct(screenWidth, screenHeight, pixelSize, pixelSize, true)) {
 		demo.Start();
 	}
 

@@ -26,16 +26,16 @@ void mb(size_t screenWidth, size_t screenHeight) {
     auto domain = Domain<double>(minX, maxX, minY, maxY);
     const auto screen = Screen(screenWidth, screenHeight);
 
-    auto runner = Mb1ByCols<double>(&screen);
-    auto paddingX = runner.PaddingX();
-    auto paddingY = runner.PaddingY();
+    auto runner = std::unique_ptr<Mb1ByCols<double>>(new Mb1ByCols<double>(&screen));
+    auto paddingX = runner->PaddingX();
+    auto paddingY = runner->PaddingY();
 
-    std::vector<char> out(runner.ArraySize());
+    std::vector<char> out(runner->ArraySize());
 
     while (true) {
         // std::cout << "\033c" << std::endl;
 
-        runner(domain, out.data());
+        runner->Run(domain, out.data());
         PrintChars(screen, out.data(), paddingX);
 
         auto val = std::cin.get();
