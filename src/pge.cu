@@ -7,6 +7,7 @@
 #include <olcPixelGameEngine.h>
 #include <cstdio>
 
+// #include "colour.hpp"
 #include "cudaHelpers.cuh"
 #include "domain.hpp"
 #include "mandelbrot.cuh"
@@ -47,14 +48,14 @@ public:
 		return true;
 	}
 
-	void DrawScreen() {
+	void DrawScreenValues() {
 		float_T thisMaxValue = 0;
 		float_T thisMinValue = 1;
 
 		for (size_t col = 0; col < m_pScreen->PixelsX(); col++) {
 			for (size_t row = 0; row < m_pScreen->PixelsY(); row++) {
 				const auto rawValue = m_pRunner->GetValue(row, col);
-				const auto mappedValue = map(rawValue, m_lastMinValue, m_lastMaxValue, 0., 1.);
+				const auto mappedValue = MapRange(rawValue, m_lastMinValue, m_lastMaxValue, 0., 1.);
 				if (rawValue > thisMaxValue) {
 					thisMaxValue = rawValue;
 				}
@@ -67,6 +68,15 @@ public:
 
 		m_lastMaxValue = thisMaxValue;
 		m_lastMinValue = thisMinValue;
+	}
+
+	void DrawScreenColours() {
+		for (size_t col = 0; col < m_pScreen->PixelsX(); col++) {
+			for (size_t row = 0; row < m_pScreen->PixelsY(); row++) {
+				const auto colour = m_pRunner->GetColour(row, col);
+				Draw(col, row, olc::Pixel(colour.R(), colour.G(), colour.B()));
+			}
+		}
 	}
 
 	void GetUserInput() {
@@ -110,8 +120,9 @@ public:
 		GetUserInput();
 
 		if (m_updateRequired) {
-			m_pRunner->Run(*m_pDomain);
-			DrawScreen();
+			m_pRunner->RunColours(*m_pDomain);
+			DrawScreenValues();
+			// DrawScreenColours();
 			m_updateRequired = false;
 		}
 
@@ -145,7 +156,7 @@ int main(int argc, char *argv[]) {
 
 	Mandelbrot<float_T, Mb8By8<float_T>> demo;
 	// Mandelbrot<float_T, Mb1ByCols<float_T>> demo;
-	if (demo.Construct(screenWidth, screenHeight, pixelSize, pixelSize, true)) {
+	if (demo.Construct(screenWidth, screenHeight, pixelSize, pixelSize, false)) {
 		demo.Start();
 	}
 

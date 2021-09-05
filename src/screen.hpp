@@ -2,8 +2,6 @@
 
 #include <stddef.h>
 
-#include "domain.hpp"
-
 struct Screen {
     Screen(size_t pixelsX, size_t pixelsY) : m_pixelsX(pixelsX), 
                                              m_pixelsY(pixelsY),

@@ -3,6 +3,7 @@
 #include <cuda_runtime_api.h>
 #include <cuda_device_runtime_api.h>
 #include <cstdio>
+#include <cmath>
 
 #include "domain.hpp"
 #include "cudaHelpers.cuh"
@@ -12,7 +13,7 @@ static constexpr size_t sMaxIterations = 100;
 
 // maps value from one range to another
 template <typename A, typename B, typename C>
-__host__ __device__ C map(A x, B x1, B x2, C y1, C y2) {
+__host__ __device__ C MapRange(A x, B x1, B x2, C y1, C y2) {
     return (x - x1) * (y2 - y1) / (x2 - x1) + y1;
 }
 
@@ -48,8 +49,8 @@ __global__ void RunMandelbrot(Domain<float_T1> domain, float_T2* out) {
     const auto col = threadIdx.x;
     const auto row = blockIdx.x;
 
-    const auto x = map(col, 0u, pixelsX, domain.MinX(), domain.MaxX());
-    const auto y = map(row, 0u, pixelsY, domain.MinY(), domain.MaxY());
+    const auto x = MapRange(col, 0u, pixelsX, domain.MinX(), domain.MaxX());
+    const auto y = MapRange(row, 0u, pixelsY, domain.MinY(), domain.MaxY());
     
     const auto idx = IndexRowMaj(row, col, pixelsX);
     const auto val = PerformMandelbrotIterations(x, y);
@@ -72,15 +73,12 @@ __global__ void RunMandelbrot8By8(Domain<float_T1> domain, float_T2* out) {
 
     const auto col = blockIdx.x * blockDim.x + threadIdx.x;
     const auto row = blockIdx.y * blockDim.y + threadIdx.y;
-    // printf("%u | ", row);
-    // printf("%u | ", col);
-    // printf("%u %u\n", blockIdx.x, blockIdx.y);
-    // printf("%2u %2u\n", row, col);
-    const auto x = map(col, 0u, pixelsX, domain.MinX(), domain.MaxX());
-    const auto y = map(row, 0u, pixelsY, domain.MinY(), domain.MaxY());
+
+    const auto x = MapRange(col, 0u, pixelsX, domain.MinX(), domain.MaxX());
+    const auto y = MapRange(row, 0u, pixelsY, domain.MinY(), domain.MaxY());
     
     const auto idx = IndexRowMaj(row, col, pixelsX);
     const auto val = PerformMandelbrotIterations(x, y);
-    // printf("%s\n", __PRETTY_FUNCTION__);
+
     out[idx] = val;
 }

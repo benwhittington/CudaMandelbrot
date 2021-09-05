@@ -5,7 +5,7 @@ RM = rm
 MKDIR = mkdir
 
 CXXFLAGS = -std=c++2a -Wall -Wextra -Wpedantic -L/usr/local/cuda/lib64 -c
-NVXXFLAGS = --compiler-options -Wall --compiler-options -Wextra --compiler-options -std=c++14 --compiler-options -O3
+NVXXFLAGS = --compiler-options -Wall --compiler-options -Wextra --compiler-options -std=c++14 --compiler-options -O3 -arch sm_61
 # NVXXFLAGS = -c
 LDFLAGS = -lcuda -lcudart -lrt -lX11 -lGL -lpthread -lpng -lstdc++fs 
 

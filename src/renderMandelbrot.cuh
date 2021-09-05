@@ -6,9 +6,11 @@
 #include <iostream>
 #include <vector>
 
-#include "screen.hpp"
+#include "colour.hpp"
+#include "colourMapping.cuh"
 #include "cudaHelpers.cuh"
 #include "domain.hpp"
+#include "screen.hpp"
 
 template<typename T>
 __host__ __device__ char MapValueToChar(T val) {
@@ -75,7 +77,7 @@ private:
     char* m_pDevCharsOut;
     Screen const* m_pScreen;
     std::unique_ptr<Indexer<RowMaj>> m_pIndexer;
-    std::vector<float_T> m_out;
+    std::vector<float_T> m_valuesOut;
     dim3 m_blockDim;
     dim3 m_gridDim;
     size_t m_arraySize;
@@ -99,7 +101,7 @@ public:
         m_paddingX = 0;
         m_paddingY = 0;
         m_arraySize = m_pScreen->NumPixels();
-        m_out = std::vector<float_T>(m_arraySize);
+        m_valuesOut = std::vector<float_T>(m_arraySize);
         m_pIndexer.reset(new Indexer<RowMaj>(m_pScreen->PixelsX(), m_paddingX));
         cuda_malloc(reinterpret_cast<void **>(&m_pDevFloatsOut), sizeof(float_T) * m_arraySize);
         // todo: fix potentially ununused memory
@@ -124,11 +126,11 @@ public:
     }
 
     float_T* Data() {
-        return m_out.data();
+        return m_valuesOut.data();
     }
 
     float_T GetValue(size_t row, size_t col) {
-        return m_out.data()[(*m_pIndexer)(row, col)];
+        return m_valuesOut.data()[(*m_pIndexer)(row, col)];
     }
 
     void Run(const Domain<float_T>& domain, char* out) {
@@ -139,7 +141,7 @@ public:
 
     void Run(const Domain<float_T>& domain) {
         PopulateValues(domain);
-        cuda_mem_cpy(m_out.data(), m_pDevFloatsOut, sizeof(float_T) * m_pScreen->NumPixels(), cudaMemcpyDeviceToHost);
+        cuda_mem_cpy(m_valuesOut.data(), m_pDevFloatsOut, sizeof(float_T) * m_pScreen->NumPixels(), cudaMemcpyDeviceToHost);
     }
 };
 
@@ -148,9 +150,11 @@ class Mb8By8 {
 private:
     float_T* m_pDevFloatsOut;
     char* m_pDevCharsOut;
+    Colour* m_pDevColoursOut;
     Screen const* m_pScreen;
     std::unique_ptr<Indexer<RowMaj>> m_pIndexer;
-    std::vector<float_T> m_out;
+    std::vector<float_T> m_valuesOut;
+    std::vector<Colour> m_coloursOut;
     dim3 m_blockDim;
     dim3 m_gridDim;
     size_t m_arraySize;
@@ -163,8 +167,8 @@ private:
         cuda_peek_last_error();
     }
 
-    void MapValues(const Domain<float_T>& domain) {
-
+    void PopulateColours() {
+        MapValueToColour8By8<<<m_gridDim, m_blockDim>>>(m_pDevFloatsOut, m_pDevColoursOut);
     }
 
     // todo see below
@@ -186,13 +190,13 @@ public:
         m_pIndexer.reset(new Indexer<RowMaj>(m_pScreen->PixelsX(), m_paddingX));
         // over allocate here so there's no branching in the kernel
         m_arraySize = blocksX * 8 * blocksY * 8;
-        m_out = std::vector<float_T>(m_arraySize);
-        std::cout << "Attempting to allocate " << m_arraySize * (sizeof(float_T) + sizeof(char)) << " bytes" << std::endl;
+        m_valuesOut = std::vector<float_T>(m_arraySize);
+        m_coloursOut = std::vector<Colour>(m_arraySize);
         cuda_malloc(reinterpret_cast<void **>(&m_pDevFloatsOut), sizeof(float_T) * m_arraySize);
+        cuda_malloc(reinterpret_cast<void **>(&m_pDevColoursOut), sizeof(Colour) * m_arraySize);
+
         // todo: fix potentially unused memory
-        cuda_malloc(reinterpret_cast<void**>(&m_pDevCharsOut), sizeof(char) * m_arraySize);
-        std::cout << "Success" << std::endl;
-        std::cout << "Screen is " << m_pScreen->PixelsY() << " by " << m_pScreen->PixelsX() << std::endl;
+        // cuda_malloc(reinterpret_cast<void**>(&m_pDevCharsOut), sizeof(char) * m_arraySize);
     }
 
     ~Mb8By8() {
@@ -213,12 +217,12 @@ public:
     }
 
     float_T GetValue(size_t row, size_t col) {
-        return m_out.data()[(*m_pIndexer)(row, col)];
+        return m_valuesOut.data()[(*m_pIndexer)(row, col)];
     }
 
-    // float_T GetValue(size_t row, size_t col) {
-    //     return m_pIndexer(row, col);
-    // }
+    Colour GetColour(size_t row, size_t col) {
+        return m_coloursOut.data()[(*m_pIndexer)(row, col)];
+    }
 
     // todo indexing doesn't work with funky padded device mem
     // void Run(const Domain<float_T>& domain, char* out) {
@@ -229,6 +233,13 @@ public:
 
     void Run(const Domain<float_T>& domain) {
         PopulateValues(domain);
-        cuda_mem_cpy(m_out.data(), m_pDevFloatsOut, sizeof(float_T) * m_arraySize, cudaMemcpyDeviceToHost);
+        cuda_mem_cpy(m_valuesOut.data(), m_pDevFloatsOut, sizeof(float_T) * m_arraySize, cudaMemcpyDeviceToHost);
     }
+
+    void RunColours(const Domain<float_T>& domain) {
+        PopulateValues(domain);
+        PopulateColours();
+        cuda_mem_cpy(m_coloursOut.data(), m_pDevColoursOut, sizeof(Colour) * m_arraySize, cudaMemcpyDeviceToHost);
+    }
+
 };
