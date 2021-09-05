@@ -1,5 +1,8 @@
 # CudaMandelbrot
-Some CUDA for making interactive ASCII art of the Mandelbrot set.
+Some CUDA for interactively rendering the Mandelbrot set. Can render in ASCII art and using PixelGameEngine.
+
+![zooming in on the Mandelbrot Set](images/zoom.gif)
+
 ```
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++    0
 +                                                           ......oo....                     +    1
@@ -32,6 +35,6 @@ Some CUDA for making interactive ASCII art of the Mandelbrot set.
 +                                                         ....o..##*.....                    +   28
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++   29
 ```
-Once your CUDA drivers are setup, it should be a matter of running `nvcc mandelbrot.cu -o main` followed by `./main`.
-The `w`, `a`, `s`, `d` keys can be used to navigate and the `=` and `-` keys can be used to zoom in and out.
+Once your CUDA drivers and PixelGameEngine are setup, it should be a matter of running `make pge` followed by `./pge` to run with PixelGameEngine or `make ascii` to render as ASCII art to the terminal. Currently only tested on Linux.
+The `w`, `a`, `s`, `d` keys can be used to navigate and the `=` and `-` keys can be used to zoom in and out. `r` will reset the window.
 
